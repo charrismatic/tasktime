@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2012 Sven Hertle <sven.hertle@googlemail.com>
-
 import sys
 import subprocess
 import json
 import re
 import datetime
 
-#
 # Calculations
-#
-
 class Calculator:
     printer = None
-
     task_cmd = "task"
-
     print_null = False
 
     def __init__(self):
@@ -27,7 +20,7 @@ class Calculator:
 
     def setTaskCmd(self, task_cmd):
         self.task_cmd = task_cmd
-    
+
     def setPrintNull(self, print_null):
         self.print_null = print_null
 
@@ -38,11 +31,13 @@ class Calculator:
 
         # Get data from taskwarrior
         try:
-            json_tmp = subprocess.check_output([self.task_cmd, 
-                                                "export", 
-                                                "pro:" + project,
-                                                "rc.json.array=on",
-                                               ])
+            json_tmp = subprocess.check_output([
+                self.task_cmd,
+                "export",
+                "pro:" + project,
+                "rc.json.array=on",
+            ])
+
         except OSError as e:
             print(str(e))
             sys.exit(1)
@@ -68,7 +63,7 @@ class Calculator:
             seconds += tmp_seconds
 
             if self.print_null or tmp_seconds != 0:
-                self.printer.print_task(t["description"], tmp_seconds)
+                self.printer.print_task(t["uuid"], t["description"], tmp_seconds)
 
         return seconds
 
@@ -100,27 +95,24 @@ class Calculator:
         if match == None:
             return None
 
-        year = int(match.group(1))
-        month = int(match.group(2))
+        yr = int(match.group(1))
+        mon = int(match.group(2))
         day = int(match.group(3))
-        
-        hour = int(match.group(4))
-        minute = int(match.group(5))
-        second = int(match.group(6))
+        hr = int(match.group(4))
+        min = int(match.group(5))
+        sec = int(match.group(6))
 
-        return datetime.datetime(year, month, day, hour, minute, second)
+        return datetime.datetime(yr, mon, day, hr, min, sec)
 
 #
 # Printer
-#
-
 class Printer:
     def print_header(self, project):
         raise NotImplementedError()
-    
-    def print_task(self, description, seconds):
+
+    def print_task(self, uuid, description, seconds):
         raise NotImplementedError()
-    
+
     def print_result(self, seconds):
         raise NotImplementedError()
 
@@ -140,17 +132,34 @@ class CSVPrinter(Printer):
         return string.replace("\"", "\"\"")
 
     def print_header(self, project):
-        print("\"Project\",\"" + self._csv_encode(project) + "\"")
-        print("\"\",\"\"")
-        print("\"Description\",\"Duration (hours)\"")
-        print("\"\",\"\"")
+        print("`PROJECT`|`TASKID`|`DURATION`|`DESCRIPTION`")
 
-    def print_task(self, description, seconds):
-        print("\"" + self._csv_encode(description) + "\",\"" + self.seconds_to_readable(seconds) + "\"")
+    def print_task(self, uuid, description, seconds):
+        print("`" + self._csv_encode(project) + "`|`" + self._csv_encode(uuid) + "`|`" + self.seconds_to_readable(seconds) + "`|`" + self._csv_encode(description) + "`")
 
     def print_result(self, seconds):
-        print("\"\",\"\"")
-        print("\"Sum\",\"" + self.seconds_to_readable(seconds) + "\"")
+        print("=================================================")
+        print("`Sum`|`" + self.seconds_to_readable(seconds) + "`")
+
+# CSV
+class MDPrinter(Printer):
+    def _csv_encode(self, string):
+        return string.replace("\"", "\"\"")
+
+    def print_header(self, project):
+        print()
+        print("__Project:__ " + project)
+        print("|TASKID|DURATION|DESCRIPTION|  ")
+        print("| --- | --- |--- |  ")
+
+    def print_task(self, uuid, description, seconds):
+        print("|" + uuid + "|" + self.seconds_to_readable(seconds) + "|" + self._csv_encode(description) + "|  ")
+
+    def print_result(self, seconds):
+        print("--- ")
+        print("__Total__ " + self.seconds_to_readable(seconds))
+        print("")
+
 
 # Readable
 class ReadablePrinter(Printer):
@@ -158,7 +167,7 @@ class ReadablePrinter(Printer):
         print("Project: " + project)
         print()
 
-    def print_task(self, description, seconds):
+    def print_task(self, uuid, description, seconds):
         print(description)
         if seconds != 0:
             print("\tDuration: " + self.seconds_to_readable(seconds))
@@ -169,48 +178,50 @@ class ReadablePrinter(Printer):
 
 # Help
 def print_help():
-    print(sys.argv[0] + " [parameters...] <project>")
+    print("Task Time Report - Calculate spent time for taskwarrior projects")
     print()
-    print("Calculate and print spent time for a project from taskwarrior")
+    print("tasktime [options] <project>")
     print()
-    print("Parameters:")
-    print("\t-h, --help\t\tShow this help")
-    print("\t-c, --csv\t\tPrint output in CSV format")
-    print("\t-n, --null\t\tPrint also tasks without time information (default: no)")
-    print("\t-t, --task [cmd]\tChange task command")
+    print("[options]")
+    print("  -h, --help\t\tShow this help")
+    print("  -a, --all\t\tPrint all project tasks (include task with no time tracking)")
+    print("  -c, --format-csv\tPrint output in CSV format")
+    print("  -m, --format-md\tPrint output in Markdown Table format")
+    print("  -t, --task [cmd]\tChange task command")
+    print()
 
-#
 # Main
-#
-
 if __name__ == "__main__":
     params = sys.argv[1:]
-    
+
     c = Calculator()
 
     project = None
     show_help = False
-
     skip = False
+
     for i,param in enumerate(params):
         if skip:
             skip = False
             continue
 
-        if param == "--csv" or param == "-c":
-            c.setPrinter(CSVPrinter())
-        elif param == "--help" or param == "-h":
+        if param == "--help" or param == "-h":
             show_help = True
+        elif param == "--format-csv" or param == "-c":
+            c.setPrinter(CSVPrinter())
+        elif param == "--format-md" or param == "-m":
+            c.setPrinter(MDPrinter())
+        elif param == "--all" or param == "-a":
+            c.setPrintNull(True)
         elif param == "--task" or param == "-t":
-            if i == len(params)-1: # Last parameter -> error
-                print("--task needs another parameter")
-                sys.exit(1)
+            if i == len(params)-1:
+                print("\nWARNING: --task command missing parameter\n")
+                print_help()
+                sys.exit(0)
             else:
                 c.setTaskCmd(params[i+1])
                 skip = True
-        elif param == "--null" or param == "-n":
-            c.setPrintNull(True)
-        elif i == len(params)-1: # Last parameter
+        elif i == len(params)-1:
             project = param
 
     if show_help or project == None:
