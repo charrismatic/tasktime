@@ -1,34 +1,41 @@
-tasktime
-========
 
-*tasktime* reads information of a project from [taskwarrior](http://www.taskwarrior.org) and calculates, how much time was spent with this project.
-*tasktime* can print CSV or readable output.
+# Task Time Report
 
-Usage
------
+> Calculate spent time for taskwarrior projectstasktime
 
-    ./tasktime.py [parameters...] <project>
+Reads tasks by project from [taskwarrior](http://www.taskwarrior.org) and calculates time spent with this project for each task.
+
+## Usage
+
+```
+tasktime [options] <project>
+```
 
 ### Parameters
 
-    -h, --help              Show help message
-    -c, --csv               Print output in CSV format
-    -n, --null              Print also tasks without time information (default: no)
+    -h, --help              Show this help
+    -a, --all               Print all project tasks (include task with no time tracking)
+    -c, --format-csv        Print output in CSV format
+    -m, --format-md         Print output in Markdown Table format
     -t, --task [cmd]        Change task command
 
-Prepare taskwarrior
--------------------
 
-You have to add `journal.time=on` to your taskwarrior configuration (`.taskrc`).
+### Setup
+
+Add `journal.time=on` to your taskwarrior configuration (`.taskrc`)
+
 Taskwarrior will save start and stop annotations from now on.
-This annotations are evaluated by tasktime.
 
-Note time with taskwarrior
---------------------------
+Only these annotations are evaluated by tasktime.
+
+
+### Note time with taskwarrior
 
 taskwarrior has the operations *start* and *stop*.
+
 This information is used to calculate the spent time.
-You have to start and stop the tasks you work on.
+
+Use `start` and `stop` on tasks you work on.
 
 Example:
 
@@ -38,16 +45,11 @@ Example:
 
     task 2 stop
 
-Examples
---------
+## Examples
 
-### Default output
+### Default 
 
-    ./tasktime.py cool-project
-
-Output:
-
-    Project: cool-project
+    Project: myproject
 
     Do something cool
         Duration: 00:13:05
@@ -55,14 +57,11 @@ Output:
         Duration: 02:18:35
 
     Sum: 02:31:40
-    
-### Print also tasks without time
-    
-    ./tasktime.py -n cool-project
 
-Output:
 
-    Project: cool-project
+### All project tasks
+
+    Project: myproject
 
     Do something cool
         Duration: 00:13:05
@@ -72,24 +71,49 @@ Output:
 
     Sum: 02:31:40
 
+
+
+### Markdown output
+
+To allow for easier text parsing the default csv delimeters and string escape characters or `|` and \`
+
+The task uuid is included to assist in editing tasks that may continue running after you stop working on them
+
+__Project:__ myproject  
+
+|TASKID|DURATION|DESCRIPTION|
+| --- | --- |--- |  
+|d402b020-d049-4523-b5fa-e2dbbca54f6a|01:00:00|taskwarrior reports|
+|d402b020-d049-4523-b5fa-e2dbbca5123a|92:06:12|taskwarrior extra reports|
+
+---  
+
+__Total:__ 93:06:12
+
+
+```md
+__Project:__ myproject  
+
+|TASKID|DURATION|DESCRIPTION|
+| --- | --- |--- |  
+|d402b020-d049-4523-b5fa-e2dbbca54f6a|01:00:00|taskwarrior reports|
+|d402b020-d049-4523-b5fa-e2dbbca5123a|92:06:12|taskwarrior extra reports|
+
+---
+
+__Total:__ 93:06:12
+```
+
+
 ### CSV output
 
-    ./tasktime.py -c cool-project
+    `PROJECT`|`TASKID`|`DURATION`|`DESCRIPTION`
+    `dev`|`d402b020-d049-4523-b5fa-e2dbbca54f6a`|`01:00:00`|`taskwarrior reports`
+    `dev`|`d402b020-d049-4523-b5fa-e2dbbca5123a`|`92:06:12`|`taskwarrior extra reports`
+    =================================================
+    `Sum`|`93:06:12`
 
-Output:
 
-    "Project","cool-project"
-    "",""
-    "Description","Duration (hours)"
-    "",""
-    "Do something cool","00:13:05"
-    "Do something really cool","02:18:35"
-    "",""
-    "Sum","02:31:40"
-
-Contact and copyright
----------------------
-
-Sven Hertle <<sven.hertle@googlemail.com>>
+### Contact and copyright
 
 tasktime is distributed under the MIT license. See [http://www.opensource.org/licenses/MIT](http://www.opensource.org/licenses/MIT) for more information.
